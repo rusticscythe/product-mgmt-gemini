@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Management Cadence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Beige & Professional Blue -->
+    <!-- Application Structure Plan: The application is structured into three main, navigable sections: 'ภาพรวม' (Overview), 'รอบการประชุม' (Meeting Cadence), and 'แดชบอร์ดตัวอย่าง' (Example Dashboard). This task-oriented design transforms the static procedural document into an interactive tool. The Overview provides a high-level summary. The Meeting Cadence section uses a nested tab system (Daily/Weekly/Monthly, with weeks 1-4 as sub-tabs) for intuitive drill-down into specific agendas. The Example Dashboard visualizes the key metrics discussed in meetings, making abstract concepts tangible and allowing users to interact with sample data via a dropdown filter. This structure enhances usability by guiding the user from general principles to specific details and finally to practical application. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Main Agenda & Key Principles -> Goal: Inform -> Viz/Presentation: Stylized cards with Unicode icons (HTML/Tailwind) -> Interaction: Hover effects -> Justification: More visually engaging than a plain list.
+        - Report Info: Meeting Cadence (Daily, Weekly, Monthly) -> Goal: Organize/Drill-down -> Viz/Presentation: Nested tabbed interface (HTML/Tailwind) -> Interaction: Clicking tabs reveals corresponding content -> Justification: Provides a clear, hierarchical navigation path that is much faster than scrolling a document.
+        - Report Info: Key Metrics (Sales, Margin, Stock) -> Goal: Compare/Analyze -> Viz/Presentation: Interactive charts (Bar, Line, Doughnut) using Chart.js -> Interaction: A dropdown filters chart data by weekly theme -> Justification: Translates abstract metrics into concrete visualizations and demonstrates the practical application of the meeting framework.
+        - Library/Method: Chart.js (Canvas) for all charts, Vanilla JS for all interactions.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <!-- คำแนะนำในการ Deploy ขึ้น GitHub Pages:
+        หากต้องการนำแดชบอร์ดนี้ไปแสดงผลผ่าน GitHub repository ให้ทำตามขั้นตอนต่อไปนี้:
+        1. สร้าง Repository ใหม่บนบัญชี GitHub ของคุณ (ตั้งค่าเป็น Public)
+        2. เปลี่ยนชื่อไฟล์นี้จาก "product_management_dashboard.html" เป็น "index.html" ซึ่งเป็นขั้นตอนสำคัญเพื่อให้ GitHub Pages รู้จักไฟล์นี้เป็นหน้าหลักโดยอัตโนมัติ
+        3. อัปโหลดไฟล์ "index.html" ที่เปลี่ยนชื่อแล้วไปยัง Repository ที่สร้างขึ้น
+        4. ไปที่หน้า Settings ของ Repository ของคุณ แล้วเลือกเมนู "Pages" ทางด้านซ้าย
+        5. ในส่วน "Build and deployment" ให้เลือก Source เป็น "Deploy from a branch"
+        6. เลือก Branch หลักของคุณ (เช่น 'main' หรือ 'master') และเลือก Folder เป็น '/ (root)'
+        7. กด Save หลังจากนั้นรอสักครู่ GitHub จะทำการ Deploy เว็บไซต์ให้ และคุณจะเห็น URL สำหรับเข้าชมในหน้านี้ URL จะมีรูปแบบเป็น: https://<your-username>.github.io/<your-repository-name>/
+        8. ไม่จำเป็นต้องแก้ไขโค้ดใดๆ เพิ่มเติม เนื่องจากโปรเจกต์นี้เรียกใช้งาน library ที่จำเป็น (Tailwind, Chart.js) ผ่าน CDN ทั้งหมดแล้ว
+    -->
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #FDFBF5;
+            color: #333;
+        }
+        .nav-link {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link.active {
+            color: #2563EB;
+            border-bottom-color: #2563EB;
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            background-color: #2563EB;
+            color: white;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="app" class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Product Management Cadence</h1>
+            <p class="text-gray-500 mt-2">เครื่องมือช่วยวางแผนและติดตามผลการประชุมฝ่ายบริหารสินค้า</p>
+        </header>
+
+        <nav class="flex justify-center space-x-4 md:space-x-8 mb-8 border-b pb-2">
+            <a id="nav-overview" class="nav-link active px-3 py-2 font-semibold text-gray-600">ภาพรวม</a>
+            <a id="nav-cadence" class="nav-link px-3 py-2 font-semibold text-gray-600">รอบการประชุม</a>
+            <a id="nav-dashboard" class="nav-link px-3 py-2 font-semibold text-gray-600">แดชบอร์ดตัวอย่าง</a>
+        </nav>
+
+        <main>
+            <section id="overview" class="content-section">
+                <div class="text-center mb-12">
+                     <h2 class="text-2xl font-bold text-gray-700">ภาพรวมและหลักการสำคัญ</h2>
+                     <p class="mt-2 text-gray-500">ส่วนนี้จะสรุปหัวข้อหลักที่ทีมต้องโฟกัสและหลักการสำคัญเพื่อให้การประชุมมีประสิทธิภาพสูงสุด ช่วยให้ทุกคนเข้าใจเป้าหมายร่วมกันก่อนลงรายละเอียด</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-bold mb-4 text-gray-700">🎯 Agenda หลักที่ต้องโฟกัส</h3>
+                        <div class="space-y-4">
+                            <div class="card p-4 flex items-start space-x-4">
+                                <span class="text-2xl">📈</span>
+                                <div>
+                                    <h4 class="font-bold">ยอดขาย (Sales)</h4>
+                                    <p class="text-sm text-gray-600">SKU, supplier, channel ไหนคือ driver? มีอะไร underperform?</p>
+                                </div>
+                            </div>
+                             <div class="card p-4 flex items-start space-x-4">
+                                <span class="text-2xl">💰</span>
+                                <div>
+                                    <h4 class="font-bold">กำไร (Margin)</h4>
+                                    <p class="text-sm text-gray-600">อัตรากำไร, การปรับราคา, deal กับ supplier</p>
+                                </div>
+                            </div>
+                             <div class="card p-4 flex items-start space-x-4">
+                                <span class="text-2xl">📦</span>
+                                <div>
+                                    <h4 class="font-bold">สต็อก & Cashflow</h4>
+                                    <p class="text-sm text-gray-600">dead stock, slow moving, MOS, cash conversion</p>
+                                </div>
+                            </div>
+                            <div class="card p-4 flex items-start space-x-4">
+                                <span class="text-2xl">🤝</span>
+                                <div>
+                                    <h4 class="font-bold">Supplier & Market Update</h4>
+                                    <p class="text-sm text-gray-600">ราคา, rebate, เทรนด์, โปรโมชั่นคู่แข่ง</p>
+                                </div>
+                            </div>
+                            <div class="card p-4 flex items-start space-x-4">
+                                <span class="text-2xl">🔁</span>
+                                <div>
+                                    <h4 class="font-bold">Action & Learning</h4>
+                                    <p class="text-sm text-gray-600">ทำอะไรต่อ, ปิด loop ของสิ่งที่ทำไปแล้ว, เก็บ learning</p>
+                                </div>
+                            </div>
+                             <div class="card p-4 flex items-start space-x-4">
+                                <span class="text-2xl">💡</span>
+                                <div>
+                                    <h4 class="font-bold">Innovation / Trend</h4>
+                                    <p class="text-sm text-gray-600">สินค้าใหม่, กระแสใหม่ที่ควร bring in</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold mb-4 text-gray-700">🔑 หลักการสำคัญ</h3>
+                        <div class="space-y-4">
+                             <div class="card p-6 bg-blue-50 border border-blue-200">
+                                <h4 class="font-bold text-blue-800">1. ปิด Loop เสมอ</h4>
+                                <p class="text-sm text-blue-700 mt-1">ทุกการประชุม Weekly และ Monthly ต้องเริ่มต้นด้วยการทบทวน Action Item จากรอบก่อนหน้า เพื่อให้แผนถูกนำไปปฏิบัติจริง</p>
+                            </div>
+                             <div class="card p-6 bg-green-50 border border-green-200">
+                                <h4 class="font-bold text-green-800">2. Daily คือ Pulse Check</h4>
+                                <p class="text-sm text-green-700 mt-1">การประชุม Daily ควรเน้นความกระชับ รวดเร็ว เพื่อรักษา Momentum ของทีม ไม่ใช่การรายงานยืดยาว</p>
+                            </div>
+                             <div class="card p-6 bg-yellow-50 border border-yellow-200">
+                                <h4 class="font-bold text-yellow-800">3. เชื่อมโยงสู่หัวใจหลัก</h4>
+                                <p class="text-sm text-yellow-700 mt-1">ทุก Agenda ต้องตอบโจทย์ “หัวใจของการจัดซื้อ”: ซื้อมาแล้วขายได้, แข่งขันได้, มีกำไร, กระแสเงินสดดี, และสต็อกไม่ล้น</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="cadence" class="content-section hidden">
+                <div class="text-center mb-12">
+                     <h2 class="text-2xl font-bold text-gray-700">รอบการประชุม (Cadence)</h2>
+                     <p class="mt-2 text-gray-500">เลือกรอบการประชุมเพื่อดูรายละเอียด Agenda และเป้าหมายของแต่ละประเภทการประชุม ช่วยให้ทีมเตรียมตัวและโฟกัสในประเด็นที่ถูกต้อง</p>
+                </div>
+
+                <div class="flex justify-center space-x-2 md:space-x-4 mb-8 bg-gray-100 p-2 rounded-lg">
+                    <button class="tab-button cadence-tab active flex-1 py-2 px-4 rounded-md font-semibold" data-target="daily">🌞 Daily</button>
+                    <button class="tab-button cadence-tab flex-1 py-2 px-4 rounded-md font-semibold" data-target="weekly">📅 Weekly</button>
+                    <button class="tab-button cadence-tab flex-1 py-2 px-4 rounded-md font-semibold" data-target="monthly">📊 Monthly</button>
+                </div>
+
+                <div id="cadence-content" class="card p-6 md:p-8">
+                </div>
+            </section>
+
+            <section id="dashboard" class="content-section hidden">
+                 <div class="text-center mb-12">
+                     <h2 class="text-2xl font-bold text-gray-700">แดชบอร์ดตัวอย่าง</h2>
+                     <p class="mt-2 text-gray-500">นี่คือตัวอย่างข้อมูลที่อาจถูกนำมาใช้ในการประชุมแต่ละสัปดาห์ ลองเลือกสัปดาห์เพื่อดูการเปลี่ยนแปลงของข้อมูลและทำความเข้าใจบริบทของแต่ละ Theme Focus</p>
+                </div>
+                
+                <div class="flex justify-center mb-8">
+                    <div class="w-full max-w-xs">
+                         <label for="week-selector" class="block text-sm font-medium text-gray-700 mb-1">เลือก Theme Focus ประจำสัปดาห์:</label>
+                        <select id="week-selector" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="1">สัปดาห์ที่ 1: ตลาดและยอดขาย</option>
+                            <option value="2">สัปดาห์ที่ 2: กำไรและต้นทุน</option>
+                            <option value="3">สัปดาห์ที่ 3: สต็อกและกระแสเงินสด</option>
+                            <option value="4">สัปดาห์ที่ 4: กลยุทธ์และ Learning</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="card p-4">
+                        <h3 id="salesChartTitle" class="text-lg font-bold text-center mb-2">Top 5 SKU by Sales</h3>
+                        <div class="chart-container">
+                            <canvas id="salesChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="card p-4">
+                        <h3 class="text-lg font-bold text-center mb-2">Inventory Health (MOS)</h3>
+                         <div class="chart-container">
+                            <canvas id="inventoryChart"></canvas>
+                        </div>
+                    </div>
+                     <div class="card p-4 lg:col-span-2">
+                        <h3 class="text-lg font-bold text-center mb-2">Gross Margin Trend by Category (%)</h3>
+                         <div class="chart-container">
+                            <canvas id="marginChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = {
+                overview: document.getElementById('nav-overview'),
+                cadence: document.getElementById('nav-cadence'),
+                dashboard: document.getElementById('nav-dashboard'),
+            };
+
+            const contentSections = {
+                overview: document.getElementById('overview'),
+                cadence: document.getElementById('cadence'),
+                dashboard: document.getElementById('dashboard'),
+            };
+
+            const cadenceTabs = document.querySelectorAll('.cadence-tab');
+            const cadenceContentEl = document.getElementById('cadence-content');
+
+            const cadenceData = {
+                daily: {
+                    title: '🌞 Daily (Morning Brief: 15–20 นาที)',
+                    quote: 'ทำหน้าที่ “Pulse check” ไม่ใช่การรายงานยาว',
+                    items: [
+                        'คงไว้ แต่ focus ให้สั้นและคม',
+                        'ติดตาม Action Item ที่ค้างจากเมื่อวาน/สัปดาห์ที่แล้ว',
+                        'อัปเดตเหตุการณ์ด่วน (ราคาปรับ, competitor action, stock shortage, claim, project bid)',
+                        'แชร์ insight สั้นๆ จาก frontline (ลูกค้า/ซัพพลายเออร์)',
+                    ]
+                },
+                weekly: {
+                    title: '📅 Weekly (Core Meeting: 60–90 นาที)',
+                    quote: '“ทีมเดินไปข้างหน้า” ไม่ใช่รายงานย้อนหลัง',
+                    content: `
+                        <p class="mb-4"><strong>Wrap up (5–10 นาทีแรก):</strong> ตรวจสอบความคืบหน้าของ Action Item จากสัปดาห์ก่อน (ใช้สถานะ: 🟢 เขียว – 🟡 เหลือง – 🔴 แดง)</p>
+                        <strong class="block mb-2">Theme Focus (โฟกัสตามธีมรายสัปดาห์):</strong>
+                        <div class="flex flex-wrap gap-2 border-b pb-4 mb-4">
+                            <button class="week-tab-btn active text-sm px-3 py-1 rounded-full bg-blue-100 text-blue-800" data-week="1">สัปดาห์ที่ 1</button>
+                            <button class="week-tab-btn text-sm px-3 py-1 rounded-full bg-gray-100 text-gray-800" data-week="2">สัปดาห์ที่ 2</button>
+                            <button class="week-tab-btn text-sm px-3 py-1 rounded-full bg-gray-100 text-gray-800" data-week="3">สัปดาห์ที่ 3</button>
+                            <button class="week-tab-btn text-sm px-3 py-1 rounded-full bg-gray-100 text-gray-800" data-week="4">สัปดาห์ที่ 4</button>
+                        </div>
+                        <div id="weekly-theme-content"></div>
+                    `
+                },
+                monthly: {
+                    title: '📊 Monthly (Management Review: 2 ชม.)',
+                    quote: '“ภาพใหญ่ + Strategy” และต้องปิด Loop Action ของเดือนก่อนหน้า',
+                    items: [
+                        'ภาพรวมยอดซื้อ–ยอดขาย เทียบเป้าหมายรายเดือน/ปี',
+                        'Gross margin แยกตาม Supplier/Category',
+                        'สรุป Inventory health (slow, dead, MOS)',
+                        'ผลตอบแทนจากการลงทุน (Promotion ROI) และบทเรียน',
+                        'ผลการเจรจาต่อรองกับ Supplier และแผนขั้นต่อไป',
+                        'Market trend & pipeline (สินค้าใหม่, เทรนด์ที่น่าสนใจ)',
+                        'แผนงานสำหรับเดือนถัดไป (SMART)',
+                        'ระบุปัญหาเชิงระบบ (process, data, cross-team) เพื่อหาทางแก้ไข'
+                    ]
+                }
+            };
+            
+            const weeklyThemeData = {
+                '1': { 
+                    title: 'สัปดาห์ที่ 1: ตลาดและยอดขาย',
+                    items: [
+                        'สรุปยอดขายเทียบเป้า (Top 10 SKU / Top supplier / Top channel)',
+                        'Insight ตลาดและคู่แข่ง (ราคาคู่แข่ง, กระแสลูกค้า, เทรนด์ที่เห็น)',
+                        '<strong>Action plan:</strong> กำหนด SKU ที่ต้องผลักดันเพิ่ม, โปรโมชั่นที่ต้องปรับปรุงหรือยุติ'
+                    ]
+                },
+                '2': { 
+                    title: 'สัปดาห์ที่ 2: กำไรและต้นทุน',
+                    items: [
+                        'วิเคราะห์ Gross margin by category (Highlight: SKU ที่กำไรตก / กำไรสูงผิดปกติ)',
+                        'อัปเดตจาก Supplier (ราคาวัตถิบ, Tier program, rebate, สถานะการเจรจา)',
+                        '<strong>Action plan:</strong> ปรับราคาขาย, เจรจาต่อรองกับซัพพลายเออร์, จัดโปรโมชั่นเพื่อระบายสต็อก'
+                    ]
+                },
+                '3': { 
+                    title: 'สัปดาห์ที่ 3: สต็อกและกระแสเงินสด',
+                    items: [
+                        'ตรวจสอบ Inventory health: Slow / Non-moving / Dead stock + MOS (month of supply)',
+                        'วิเคราะห์ Cash conversion: วงจรเงินสด (ซื้อ-ขาย-รับเงิน)',
+                        '<strong>Action plan:</strong> จัดโปรโมชั่น Clearance, ทำ Bundle set, หาช่องทางขายอื่น (FB Marketplace, project push)'
+                    ]
+                },
+                '4': { 
+                    title: 'สัปดาห์ที่ 4: กลยุทธ์และ Learning',
+                    items: [
+                        'ทบทวนโปรเจกต์ / Promotion review: เปรียบเทียบผลลัพธ์กับ Baseline',
+                        'สรุปสิ่งที่เรียนรู้จากเดือนที่ผ่านมา: อะไรเวิร์ก / ไม่เวิร์ก → Keep / Stop / Try',
+                        'วางแผนสำหรับเดือนหน้า: ตั้งเป้าหมายแบบ SMART',
+                        '<strong>ข้อสรุป:</strong> ทุก Action Plan ต้องมี Owner + Deadline + Measure ที่ชัดเจน'
+                    ]
+                },
+            };
+
+            function switchNav(targetId) {
+                Object.keys(contentSections).forEach(id => {
+                    const section = contentSections[id];
+                    const link = navLinks[id];
+                    if (id === targetId) {
+                        section.classList.remove('hidden');
+                        link.classList.add('active');
+                    } else {
+                        section.classList.add('hidden');
+                        link.classList.remove('active');
+                    }
+                });
+            }
+
+            Object.keys(navLinks).forEach(id => {
+                navLinks[id].addEventListener('click', () => switchNav(id));
+            });
+            
+            function renderCadenceContent(target) {
+                const data = cadenceData[target];
+                let html = `
+                    <h3 class="text-xl font-bold mb-1">${data.title}</h3>
+                    <p class="text-gray-500 italic mb-6">👉 ${data.quote}</p>
+                `;
+                if(data.items) {
+                    html += '<ul class="list-disc list-inside space-y-2">';
+                    data.items.forEach(item => {
+                        html += `<li class="text-gray-700">${item}</li>`;
+                    });
+                    html += '</ul>';
+                }
+                if(data.content) {
+                    html += data.content;
+                }
+                cadenceContentEl.innerHTML = html;
+
+                if (target === 'weekly') {
+                    renderWeeklyThemeContent('1');
+                    cadenceContentEl.querySelectorAll('.week-tab-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            renderWeeklyThemeContent(e.target.dataset.week);
+                        });
+                    });
+                }
+            }
+            
+            function renderWeeklyThemeContent(week) {
+                 const weeklyContentEl = document.getElementById('weekly-theme-content');
+                 if (!weeklyContentEl) return;
+                 
+                 document.querySelectorAll('.week-tab-btn').forEach(b => {
+                     b.classList.remove('active', 'bg-blue-100', 'text-blue-800');
+                     b.classList.add('bg-gray-100', 'text-gray-800');
+                 });
+                 const activeBtn = document.querySelector(`.week-tab-btn[data-week="${week}"]`);
+                 if(activeBtn){
+                    activeBtn.classList.add('active', 'bg-blue-100', 'text-blue-800');
+                    activeBtn.classList.remove('bg-gray-100', 'text-gray-800');
+                 }
+
+                 const data = weeklyThemeData[week];
+                 let html = `
+                    <h4 class="font-bold text-lg mb-3">${data.title}</h4>
+                    <ul class="list-disc list-inside space-y-2">
+                        ${data.items.map(item => `<li class="text-gray-700">${item}</li>`).join('')}
+                    </ul>
+                 `;
+                 weeklyContentEl.innerHTML = html;
+            }
+
+            cadenceTabs.forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    cadenceTabs.forEach(t => t.classList.remove('active'));
+                    e.target.classList.add('active');
+                    renderCadenceContent(e.target.dataset.target);
+                });
+            });
+
+            renderCadenceContent('daily');
+
+            const salesCtx = document.getElementById('salesChart').getContext('2d');
+            const inventoryCtx = document.getElementById('inventoryChart').getContext('2d');
+            const marginCtx = document.getElementById('marginChart').getContext('2d');
+            
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('th-TH').format(context.parsed.y);
+                                }
+                                if(context.chart.config.type === 'doughnut') {
+                                     label = context.label + ': ' + context.parsed + '%';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+            };
+
+            const salesChart = new Chart(salesCtx, {
+                type: 'bar',
+                data: {},
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) { return new Intl.NumberFormat('th-TH', { notation: 'compact' }).format(value); }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const inventoryChart = new Chart(inventoryCtx, {
+                type: 'doughnut',
+                data: {},
+                options: chartOptions
+            });
+
+            const marginChart = new Chart(marginCtx, {
+                type: 'line',
+                data: {},
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        y: {
+                           ticks: {
+                               callback: function(value) { return value + '%' }
+                           }
+                        }
+                    }
+                }
+            });
+            
+            const mockData = {
+                '1': {
+                    sales: { labels: ['SKU-A01', 'SKU-C03', 'SKU-B02', 'SKU-A05', 'SKU-D11'], data: [120000, 95000, 78000, 61000, 45000] },
+                    inventory: { labels: ['Healthy Stock', 'Slow Moving', 'Dead Stock'], data: [75, 20, 5] },
+                    margin: { labels: ['Cat A', 'Cat B', 'Cat C', 'Cat D'], data: [22, 18, 25, 20] }
+                },
+                '2': {
+                    sales: { labels: ['SKU-A01', 'SKU-C03', 'SKU-B02', 'SKU-E07', 'SKU-F09'], data: [115000, 98000, 75000, 68000, 52000] },
+                    inventory: { labels: ['Healthy Stock', 'Slow Moving', 'Dead Stock'], data: [72, 22, 6] },
+                    margin: { labels: ['Cat A', 'Cat B', 'Cat C', 'Cat D'], data: [21, 17.5, 24, 19] }
+                },
+                '3': {
+                    sales: { labels: ['SKU-A01', 'SKU-C03', 'SKU-B02', 'SKU-G01', 'SKU-H04'], data: [125000, 93000, 81000, 55000, 49000] },
+                    inventory: { labels: ['Healthy Stock', 'Slow Moving', 'Dead Stock'], data: [68, 25, 7] },
+                    margin: { labels: ['Cat A', 'Cat B', 'Cat C', 'Cat D'], data: [21.5, 18, 24.5, 19.5] }
+                },
+                '4': {
+                    sales: { labels: ['SKU-A01', 'SKU-C03', 'SKU-B02', 'SKU-A05', 'SKU-D11'], data: [130000, 105000, 80000, 65000, 50000] },
+                    inventory: { labels: ['Healthy Stock', 'Slow Moving', 'Dead Stock'], data: [70, 23, 7] },
+                    margin: { labels: ['Cat A', 'Cat B', 'Cat C', 'Cat D'], data: [22.5, 18.5, 25, 20.5] }
+                },
+            };
+
+            function updateDashboard(week) {
+                const data = mockData[week];
+                
+                salesChart.data = {
+                    labels: data.sales.labels,
+                    datasets: [{
+                        label: 'ยอดขาย (บาท)',
+                        data: data.sales.data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                };
+                salesChart.update();
+
+                inventoryChart.data = {
+                    labels: data.inventory.labels,
+                    datasets: [{
+                        label: 'สัดส่วนสต็อก',
+                        data: data.inventory.data,
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(255, 99, 132, 0.6)'
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                };
+                inventoryChart.update();
+
+                marginChart.data = {
+                    labels: data.margin.labels,
+                    datasets: [{
+                        label: 'อัตรากำไรขั้นต้น',
+                        data: data.margin.data,
+                        fill: false,
+                        borderColor: 'rgb(255, 159, 64)',
+                        tension: 0.1
+                    }]
+                };
+                marginChart.update();
+            }
+
+            document.getElementById('week-selector').addEventListener('change', (e) => {
+                updateDashboard(e.target.value);
+            });
+            
+            updateDashboard('1');
+
+        });
+    </script>
+</body>
+</html>
+
